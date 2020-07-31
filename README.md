@@ -1,5 +1,5 @@
 # RNA_seq
-This repository contains scripts and pipeline for analyzing sequence capture data.
+This repository contains scripts and a pipeline for analyzing RNA-seq data.
 
 The pipeline is outlined step by step in the Word doc.
 
