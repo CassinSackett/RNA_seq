@@ -40,7 +40,8 @@ $ less align_stats.txt
 
 ####Assess number of full-length coding transcripts. the .pep file is the blast database. **First I needed to break the fasta file into a bunch of pieces to make it run faster (took 72 hours to get the first <400 hits when blasting against nr)**:
 
-$ blastx -query /path/allbirdsPE_trinity.Trinity.fasta -db /path/mini_sprot.pep -out birds_blastx.outfmt6 -evalue 1e-20 -max_target_seqs 1 -outfmt 6
+$ split -l 600 /path/allbirdsPE_trinity.Trinity.fasta allbirds_trinity_Q14trimmo35Trinity_part
+$ for i in allbirds_trinity_Q14trimmo35Trinity_part*; do blastx -query $i -db /path/mini_sprot.pep -out ${i/allbirds_trinity_Q14trimmo35Trinity_part/allbirds_blastx_outfmt6_part} -evalue 1e-20 -max_target_seqs 1 -outfmt 6; done
 
 ####create a table of counts, e.g., 2 transcripts had were between 90 and 100% length, 0 were between 80 and 90%, etc. The far right column is a cumulative number.
 $ /trinitypath/analyze_blastPlus_topHit_coverage.pl birds_blastx.outfmt6 /path/allbirdsPE_trinity.Trinity.fasta /path/mini_sprot.pep | column -t
