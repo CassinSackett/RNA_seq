@@ -79,6 +79,17 @@ $ scp you@server:/path/diffExpr.P1e-3_C2.matrix.log2.centered.genes_vs_samples_h
 ####You can also cut the dendrogram to view transcript clusters that share similar expression profiles.
 $ define_clusters_by_cutting_tree.pl --Ptree 60 -R diffExpr.P1e-3_C2.matrix.RData
 
+#### Extract candidate transcripts from the transcriptome so you can blast
+First, take the first column of your DE results at the significance cutoff you choose:
+$ cut -f1 DE_results > candidate_transcripts.txt
 
+Next, extract the transcript sequences from the transcriptome assembly:
+cat trinity-transcripts_infection-candidates.txt | while read line
+do
+        grep -A1 $line trinityfiles/allbirdsPE_trinity.Trinity.fasta > $line.fasta
+done
 
+and then (using a unique identifier - mine happened to be all isoform 1s):
+$ cat *_i1.fasta > all_candidates_toblast.fasta
 
+Now you can blast these candidates to SwissProt.
