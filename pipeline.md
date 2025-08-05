@@ -93,3 +93,35 @@ and then (using a unique identifier - mine happened to be all isoform 1s):
 $ cat *_i1.fasta > all_candidates_toblast.fasta
 
 Now you can blast these candidates to SwissProt.
+
+
+#### 7.  Test for enrichment of GO terms in Trinotate
+# step 7a - create sqlite
+Trinotate --db Trinotate.sqlite --create --trinotate_data_dir ./TRINOTATE_DATA_DIR
+
+# step 7b - load sqlite database with my Trinity transcripts & predicted protein seqs - generates Trinotate.xls
+Trinotate --db Trinotate.sqlite --init --gene_trans_map ../trinityfiles/allbirdsPE_trinity.Trinity.fasta.gene_trans_map \
+	--transcript_fasta ../trinityfiles/allbirdsPE_trinity.Trinity.fasta \
+	--transdecoder_pep ../TransDecoder-TransDecoder-v5.7.1/allbirdsPE_trinity.Trinity.fasta.transdecoder.pep
+
+# step 7c run blast so we can add annotations to the existing Trinotate.xls file 
+Trinotate --db Trinotate.sqlite --CPU 44 --transcript_fasta ../trinityfiles/allbirdsPE_trinity.Trinity.fasta \
+	--transdecoder_pep ../TransDecoder-TransDecoder-v5.7.1/allbirdsPE_trinity.Trinity.fasta.transdecoder.pep \
+	--trinotate_data_dir TRINOTATE_DATA_DIR \
+	--run "swissprot_blastp swissprot_blastx pfam signalp6 tmhmmv2 infernal EggnogMapper" \
+	--use_diamond
+
+# step 7d - create annotation report, adding the previously generated annotations
+#Trinotate --db Trinotate.sqlite --report > Trinotate.xls
+Trinotate --db Trinotate.sqlite --report -E 1e-3 --incl_pep --incl_trans > TrinotateE-3transpep.xls
+
+# step 7e - extract GO assignments for each gene feature. -G is for gene mode; -T is for transcript mode
+${TRINOTATE_HOME}/util/extract_GO_assignments_from_Trinotate_xls.pl --Trinotate_xls /birdRNA_pilot/TRINOTATE/TrinotateE-3transpep.xls \
+        -T --include_ancestral_terms > go_annotations_iso.txt
+
+# step 7f - use GOseq to perform functional enrichment -- go to trinity
+$TRINITY_HOME/Analysis/DifferentialExpression/analyze_diff_expr.pl --matrix /\birdRNA_pilot/quant/allbirdsPE_counts.isoform.TMM.EXPR.matrix \
+        --samples /birdRNA_pilot/DGE/sample-list_forDGE_infectstatus.txt -P 0.051 --output edgeR_trans_infectGOiso \
+        --examine_GO_enrichment --GO_annots ../../TRINOTATE/go_annotations_iso.txt \
+        --gene_lengths ../../Trinity.fasta.seq_lens
+
