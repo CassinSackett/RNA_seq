@@ -1,14 +1,14 @@
 Transcriptomics pipeline, adapted from Smithsonian Institution workshop https://github.com/SmithsonianWorkshops/2020-01-28-NMNH-RNAseq
 
-#### 1. Read quality assessment with FASTQC
+## 1. Read quality assessment with FASTQC
 $ for i in *.fastq; do fastqc $i; done
 
-#### 2. Trimming adapters with TrimGalore TrimGalore will auto-detect what adapters are present and remove very low quality reads (quality score <20) by default.
+## 2. Trimming adapters with TrimGalore TrimGalore will auto-detect what adapters are present and remove very low quality reads (quality score <20) by default.
 $ mkdir trimgalore
 $ cd trimgalore
 $ for i in *1.fastq; do trim_galore --paired --retain_unpaired $i ${i%1.fastq}2.fastq; done
 
-#### 3. Running Trinity can be tricky depending on how everything is installed on the cluster. I had to install it within a conda environment, so the 'source' and conda steps are related to calling Trinity using conda.
+## 3. Running Trinity can be tricky depending on how everything is installed on the cluster. I had to install it within a conda environment, so the 'source' and conda steps are related to calling Trinity using conda.
 $ mkdir trinity
 $ cd trinity
 
@@ -18,7 +18,7 @@ source /project/sackettl/miniconda3/etc/profile.d/conda.sh
 conda activate trinity-2.11.0
 /path/Trinity --seqType fq --max_memory 10G --samples_file /path/samplelist_trinityPE.txt --min_contig_length 150 --output /path/allbirdsPE_trinity --full_cleanup
 
-#### 4. Evaluate the Trinity assembly in these steps. Note that g1 refers to gene 1 and i1 refers to isoform 1. There can be many isoforms per gene. This can become important in downstream applications such as orthology assessment or differential expression.
+## 4. Evaluate the Trinity assembly in these steps. Note that g1 refers to gene 1 and i1 refers to isoform 1. There can be many isoforms per gene. This can become important in downstream applications such as orthology assessment or differential expression.
 ####You should have the assembly written to allbirdsPE_trinity.Trinity.fasta and a gene map file allbirdsPE_trinity.Trinity.fasta.gene_trans_map. Check out the first few lines of the assembly:
 $ head RNA_Eye.trinity.Trinity.fasta
 
@@ -46,7 +46,7 @@ $ for i in allbirds_trinity_Q14trimmo35Trinity_part*; do blastx -query $i -db /p
 ####create a table of counts, e.g., 2 transcripts had were between 90 and 100% length, 0 were between 80 and 90%, etc. The far right column is a cumulative number.
 $ /trinitypath/analyze_blastPlus_topHit_coverage.pl birds_blastx.outfmt6 /path/allbirdsPE_trinity.Trinity.fasta /path/mini_sprot.pep | column -t
 
-#### 5. Estimate abundance of transcripts with RSEM
+## 5. Estimate abundance of transcripts with RSEM
 $ trinity-2.11.0/bin/align_and_estimate_abundance.pl --seqType fq --samples_file /path/samplelist_trinityPE.txt --transcripts /path/allbirdsPE_trinity.Trinity.fasta --est_method RSEM --aln_method bowtie --trinity_mode --prep_reference --coordsort_bam --output_dir allbirdsPE.RSEM
 
 ####Generate a transcript counts matrix and perform cross-sample normalization. Is there a way to autumate instead of typing sample names individually? Certainly with RegEx 
@@ -56,7 +56,7 @@ $ path_to_trinity/bin/abundance_estimates_to_matrix.pl --est_method RSEM --out_p
 $ head -20 allbirdsPE_counts.isoform.counts.matrix | column -t
 $ less -S allbirdsPE_counts.isoform.counts.matrix 
 
-#### 6. Test for differential gene expression (DGE) between groups
+## 6. Test for differential gene expression (DGE) between groups
 ####Create a tab-delimited samples file with treatment/group in the first column and name of the sample folder in  the second column, e.g.
 low	r14_low
 high	r2_high
@@ -95,31 +95,34 @@ $ cat *_i1.fasta > all_candidates_toblast.fasta
 Now you can blast these candidates to SwissProt.
 
 
-#### 7.  Test for enrichment of GO terms in Trinotate
-# step 7a - create sqlite
+## 7.  Test for enrichment of GO terms in Trinotate
+### step 7a - create sqlite
 Trinotate --db Trinotate.sqlite --create --trinotate_data_dir ./TRINOTATE_DATA_DIR
 
-# step 7b - load sqlite database with my Trinity transcripts & predicted protein seqs - generates Trinotate.xls
+### step 7b - Generate Trinotate.xls
+#### load sqlite database with my Trinity transcripts & predicted protein seqs 
 Trinotate --db Trinotate.sqlite --init --gene_trans_map ../trinityfiles/allbirdsPE_trinity.Trinity.fasta.gene_trans_map \
 	--transcript_fasta ../trinityfiles/allbirdsPE_trinity.Trinity.fasta \
 	--transdecoder_pep ../TransDecoder-TransDecoder-v5.7.1/allbirdsPE_trinity.Trinity.fasta.transdecoder.pep
 
-# step 7c run blast so we can add annotations to the existing Trinotate.xls file 
+### step 7c Add annotations to the existing Trinotate.xls file 
+#### run blast with multiple databases
 Trinotate --db Trinotate.sqlite --CPU 44 --transcript_fasta ../trinityfiles/allbirdsPE_trinity.Trinity.fasta \
 	--transdecoder_pep ../TransDecoder-TransDecoder-v5.7.1/allbirdsPE_trinity.Trinity.fasta.transdecoder.pep \
 	--trinotate_data_dir TRINOTATE_DATA_DIR \
 	--run "swissprot_blastp swissprot_blastx pfam signalp6 tmhmmv2 infernal EggnogMapper" \
 	--use_diamond
 
-# step 7d - create annotation report, adding the previously generated annotations
+### step 7d - create annotation report, adding the previously generated annotations
 #Trinotate --db Trinotate.sqlite --report > Trinotate.xls
 Trinotate --db Trinotate.sqlite --report -E 1e-3 --incl_pep --incl_trans > TrinotateE-3transpep.xls
 
-# step 7e - extract GO assignments for each gene feature. -G is for gene mode; -T is for transcript mode
+### step 7e - extract GO assignments for each gene feature. 
+#### flags: -G is for gene mode; -T is for transcript mode
 ${TRINOTATE_HOME}/util/extract_GO_assignments_from_Trinotate_xls.pl --Trinotate_xls /birdRNA_pilot/TRINOTATE/TrinotateE-3transpep.xls \
         -T --include_ancestral_terms > go_annotations_iso.txt
 
-# step 7f - use GOseq to perform functional enrichment -- go to trinity
+### step 7f - use GOseq to perform functional enrichment -- go to Trinity
 $TRINITY_HOME/Analysis/DifferentialExpression/analyze_diff_expr.pl --matrix /\birdRNA_pilot/quant/allbirdsPE_counts.isoform.TMM.EXPR.matrix \
         --samples /birdRNA_pilot/DGE/sample-list_forDGE_infectstatus.txt -P 0.051 --output edgeR_trans_infectGOiso \
         --examine_GO_enrichment --GO_annots ../../TRINOTATE/go_annotations_iso.txt \
